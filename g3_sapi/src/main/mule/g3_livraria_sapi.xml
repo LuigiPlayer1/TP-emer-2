@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:outlook365="http://www.mulesoft.org/schema/mule/outlook365" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd  http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
+http://www.mulesoft.org/schema/mule/outlook365 http://www.mulesoft.org/schema/mule/outlook365/current/mule-outlook365.xsd">
+    <http:listener-config name="g3_livraria_sapi-httpListenerConfig">
+        <http:listener-connection host="localhost" port="8083" />
+    </http:listener-config>
+    <apikit:config name="g3_livraria_sapi-config" api="resource::9db08e7d-b8a3-4596-8442-6d0aabe71fcc:g3_livraria_sapi:1.0.10:raml:zip:g3_livraria_sapi.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="20dc1784-c993-40c7-8679-5f2a8e310c01">
+        <email:smtp-connection host="smtp.office365.com" user="a89978@ualg.pt" port="587" password="!#Y0of">
+            <email:properties>
+                <email:property key="mail.smtp.starttls.enable" value="true" />
+            </email:properties>
+        </email:smtp-connection>
+    </email:smtp-config>
+    <email:smtp-config name="Email_SMTP1" doc:name="Email SMTP" doc:id="f55700eb-97c3-426b-9a30-c989c3e722a2">
+        <email:smtp-connection host="smtp.gmail.com" port="465" user="rafa.hp2006@gmail.com" password="acxh tttb buii asrb">
+            <email:properties>
+                <email:property key="mail.smtp.starttls.enable" value="true" />
+            </email:properties>
+        </email:smtp-connection>
+    </email:smtp-config>
+    <http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="7c2d74e3-6c61-44b3-ae50-46ed0e123f2e" basePath="/books/" >
+		<http:request-connection host="openlibrary.org" />
+	</http:request-config>
+	<http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="3793d0dd-2727-4b9b-ba78-873b41743ba5" >
+		<http:request-connection host="openlibrary.org" />
+	</http:request-config>
+	<flow name="g3_livraria_sapi-main">
+        <http:listener config-ref="g3_livraria_sapi-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="g3_livraria_sapi-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="g3_livraria_sapi-console">
+        <http:listener config-ref="g3_livraria_sapi-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="g3_livraria_sapi-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="get:\Books:g3_livraria_sapi-config">
+        <flow-ref doc:name="Reference para g3_Get_Books" doc:id="c6948003-6d54-4bdb-9585-7fad2204be52" name="g3_Get_Books" />
+    </flow>
+    <flow name="get:\Books\(id):g3_livraria_sapi-config">
+        <set-variable value="#[attributes.uriParams.id]" doc:name="Set BookID" doc:id="225f7191-b52a-4b67-a99f-1f9ffaf67528" variableName="bookid2" />
+        <flow-ref doc:name="Reference para g3_get_book_id" doc:id="fe666660-7fa7-41f0-a42a-15fcbe28dd39" name="g3_get_book_id" />
+    </flow>
+	<flow name="post:\Books:application\json:g3_livraria_sapi-config">
+		<flow-ref doc:name="Flow Reference" doc:id="911983a2-bd09-41ca-bf98-b7e1097ca67b" name="g3_Post_book"/>
+    </flow>
+    <flow name="get:\Orders:g3_livraria_sapi-config">
+        <flow-ref doc:name="Reference para g3_Get_Orders" doc:id="d8a3f9a1-c731-423f-a12a-7ba1fa049ba7" name="g3_Get_Orders" />
+    </flow>
+    <flow name="post:\Orders:application\json:g3_livraria_sapi-config">
+        <flow-ref doc:name="Reference para g3_Post_Order" doc:id="c3097167-30e2-48a0-9405-89400135e8d6" name="g3_Post_Order" />
+    </flow>
+    <flow name="get:\Orders\(id):g3_livraria_sapi-config">
+        <set-variable value="#[attributes.uriParams.id]" doc:name="Set OrderID" doc:id="89cacc5c-f75a-45e0-9071-e567a920616f" variableName="oneorder2" />
+        <flow-ref doc:name="Reference para g3_Get_Orderid" doc:id="7bb5f422-bd18-415f-8ec4-5556ad626fed" name="g3_Get_Orderid" />
+    </flow>
+    <flow name="post:\Orders\(id):application\json:g3_livraria_sapi-config">
+        <flow-ref doc:name="Reference para g3_Post_Orderid" doc:id="18cced41-304c-4470-87b2-705f5b0a2d1a" name="g3_Post_Orderid" />
+    </flow>
+    <flow name="get:\Stocks:g3_livraria_sapi-config">
+        <flow-ref doc:name="Reference para g3_Get_stock" doc:id="06cc5dd6-2aae-4e98-87f1-f70ccaf2de1a" name="g3_Get_stock" />
+    </flow>
+    <flow name="post:\Stocks:application\json:g3_livraria_sapi-config">
+        <flow-ref doc:name="Reference para g3_Post_Stock" doc:id="32b1c180-7de6-4ef5-a310-0db76fa03877" name="g3_Post_Stock" />
+    </flow>
+    <flow name="get:\Stocks\(id):g3_livraria_sapi-config">
+        <set-variable value="#[attributes.uriParams.id]" doc:name="Set StockID" doc:id="0ca0534e-2882-4f50-a1be-c524c9ebfe14" variableName="stockid2" />
+        <flow-ref doc:name="Reference para g3_Get_stockid" doc:id="7a333af7-0fbc-4418-87ba-63165cfee2a6" name="g3_Get_stockid" />
+    </flow>
+    <flow name="put:\Stocks\(id):application\json:g3_livraria_sapi-config">
+        <set-variable value="#[attributes.uriParams.id]" doc:name="Set stockID" doc:id="5caaaba7-be6c-4660-a047-af2ea14d1cb6" variableName="pustock2" />
+		<flow-ref doc:name="Reference para g3_Put_stock" doc:id="158f3962-24c3-47f1-b9e9-2a6240071458" name="g3_Put_stock" />
+    </flow>
+    <flow name="delete:\Stocks\(id):g3_livraria_sapi-config">
+        <set-variable value="#[attributes.uriParams.id]" doc:name="Set stockID" doc:id="915c0050-ecbe-408a-9acf-13721de0981e" variableName="delstock2" />
+        <flow-ref doc:name="Reference para g3_Delete_stock" doc:id="13aad146-7034-48d3-8c09-91a4bd7a98b3" name="g3_Delete_stock" />
+    </flow>
+    <flow name="put:\Books\(id):application\json:g3_livraria_sapi-config">
+		<set-variable value="#[attributes.uriParams.id]" doc:name="Set BookID" doc:id="150bfb4e-f0d4-4db7-8c39-7d7502059887" variableName="putbook2" />
+		<flow-ref doc:name="Reference para g3_Put_Books" doc:id="fbbeb467-ceb4-4a02-98d8-1e9d38a3d414" name="g3_Put_Books"/>
+    </flow>
+    <flow name="put:\Orders\(id):application\json:g3_livraria_sapi-config">
+		<set-variable value="#[attributes.uriParams.id]" doc:name="Set OrderID" doc:id="f474f553-e71a-4472-bda7-4df62e1302b5" variableName="putorder2" />
+		<flow-ref doc:name="Reference para g3_Put_Orders" doc:id="e42b32d1-3e06-49f4-be5f-1b2fe6d4c303" name="g3_Put_Orders" />
+    </flow>
+    <flow name="delete:\Books\(id):g3_livraria_sapi-config">
+		<set-variable value="#[attributes.uriParams.id]" doc:name="Set BookID" doc:id="fd8c721e-0cb7-4207-b154-97643945697d" variableName="delbook2" />
+		<flow-ref doc:name="Reference para g3_Delete_book" doc:id="87d34a6e-b7e3-4bb5-b315-8b7c834be427" name="g3_Delete_book" />
+    </flow>
+    <flow name="get:\Orders\Store\(id):g3_livraria_sapi-config">
+		<set-variable value="#[attributes.uriParams.id]" doc:name="Set StoreID" doc:id="9be43075-8005-4ea3-bd7b-b8995a67c9f8" variableName="abc2" />
+		<flow-ref doc:name="Reference para g3_GET_Order_storeid" doc:id="87f8d2f9-1d39-4e7f-9f4d-a08ac00deb28" name="g3_GET_Order_storeid" />
+    </flow>
+</mule>

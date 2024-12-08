@@ -1,0 +1,5 @@
+%dw 2.0
+
+type auto_7ba7267c_b73c_4103_ad37_b9e3479635c0_Input_Payload = {|  |} {"mediaType": "application/json",
+"encoding": "UTF-8"}
+

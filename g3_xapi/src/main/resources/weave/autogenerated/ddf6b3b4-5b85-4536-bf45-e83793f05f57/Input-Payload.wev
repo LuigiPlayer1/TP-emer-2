@@ -1,0 +1,9 @@
+%dw 2.0
+
+type auto_ddf6b3b4_5b85_4536_bf45_e83793f05f57_Input_Payload = {
+  quantity: Number, 
+  id?: Number, 
+  book_id?: String, 
+  _?: Any
+}
+

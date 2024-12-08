@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_2d09480a_7995_4a40_b5be_5758d614107a_Input_Payload = Array<{  quantity: Number,   id?: Number,   book_id?: String,   _?: Any}>
+

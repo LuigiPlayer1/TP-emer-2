@@ -1,0 +1,13 @@
+%dw 2.0
+
+type auto_ff2722ca_6c0c_48b3_bdf1_f07d5e6e910e_Output_Payload = {
+  store_id: Number, 
+  total: Number, 
+  buyer_name: String, 
+  id?: Number, 
+  state: "Concluded" | "Accepted" | "Processing", 
+  creation_date?: String, 
+  order_details: Array<{    quantity: Number,     id?: String,     _?: Any  }> {"description": "Lista de itens associados à encomenda"}, 
+  _?: Any
+}
+

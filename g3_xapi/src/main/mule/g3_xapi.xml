@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="2348b45a-1d9b-4819-85cd-de32201a09ea" basePath="/api" >
+		<http:request-connection host="localhost" port="8082" />
+	</http:request-config>
+	<flow name="g3_get_book_id" doc:id="ff2722ca-6c0c-48b3-bdf1-f07d5e6e910e" >
+		<http:request method="GET" doc:name="Request GET a PAPI" doc:id="69ba82b5-b44c-4466-aee7-b36a34907cfc" config-ref="HTTP_Request_configuration" path="/Books/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.bookid
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="g3_get_order_storeid" doc:id="41eecf39-8559-48d9-95b8-a505df74fa0a" >
+		<http:request method="GET" doc:name="Request GET a PAPI" doc:id="5f88bd10-2931-4432-8201-713cf43770d6" config-ref="HTTP_Request_configuration" path="/Orders/Store/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.abc
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="Post_Order" doc:id="2b7bd769-514a-41cc-b79a-8279c0bf1a3b" >
+		<http:request method="POST" doc:name="Request POST a PAPI" doc:id="52c11842-0850-4c07-a139-64eb91f29583" config-ref="HTTP_Request_configuration" path="/Orders"/>
+	</flow>
+	<flow name="g3_Post_stock" doc:id="2d09480a-7995-4a40-b5be-5758d614107a" >
+		<http:request method="POST" doc:name="Request POST a PAPI" doc:id="f5402402-4f42-4c4c-9217-4d3bac9323e8" config-ref="HTTP_Request_configuration" path="/Stocks"/>
+	</flow>
+	<flow name="g3_Get_Stockid" doc:id="cff7e28a-fa6c-4394-ab3c-4f8999c10850" >
+		<http:request method="GET" doc:name="Request GET a PAPI" doc:id="6ce382ad-7477-4d5f-ab8f-55345c915db1" config-ref="HTTP_Request_configuration" path="/Stocks/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.stockid
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="g3_Post_book" doc:id="fe72f691-5f68-40a2-baba-55a773feefb2" >
+		<http:request method="POST" doc:name="Request POST a PAPI" doc:id="78ea45de-6617-44be-b781-6985571f971d" config-ref="HTTP_Request_configuration" path="/Books"/>
+	</flow>
+	<flow name="g3_Get_stock" doc:id="7a642956-1ea2-4881-a66f-3cc2b18c8506" >
+		<http:request method="GET" doc:name="Request GET a PAPI" doc:id="3b04db29-ee12-4a3e-ae28-f593589f9509" config-ref="HTTP_Request_configuration" path="/Stocks"/>
+	</flow>
+	<flow name="g3_Put_stock" doc:id="ddf6b3b4-5b85-4536-bf45-e83793f05f57" >
+		<http:request method="PUT" doc:name="Request PUT a PAPI" doc:id="9f2e3c25-5e52-4a48-817c-fbca70579d55" config-ref="HTTP_Request_configuration" path="/Stocks/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.pustock
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="g3_Delete_stock" doc:id="86016165-41dc-4f73-ab7e-d8dd28550282" >
+		<http:request method="DELETE" doc:name="Request DELETE a PAPI" doc:id="348f4e7f-a077-42ba-8489-776bfd48066e" config-ref="HTTP_Request_configuration" path="/Stocks/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.delstock
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="g3_Get_books" doc:id="59835985-b588-4606-85c7-aedd528c360d" >
+		<http:request method="GET" doc:name="Request GET a PAPI" doc:id="7720bd67-4264-4f59-8811-b8f26d5c3851" config-ref="HTTP_Request_configuration" path="/Books"/>
+	</flow>
+	<flow name="g3_Get_Orders" doc:id="e8afaf31-4eb5-4c06-85dc-6344ff8bd89a" >
+		<http:request method="GET" doc:name="Request GET a PAPI" doc:id="1fc3456e-950f-4c6f-968b-0fe544c0cfb0" config-ref="HTTP_Request_configuration" path="/Orders"/>
+	</flow>
+	<flow name="g3_Get_Orderid" doc:id="15a3c9fb-df41-4669-829f-3f81ddc38214" >
+		<http:request method="GET" doc:name="Request GET a PAPI" doc:id="2b8ee6fd-a15d-4f71-b3ca-573ab47e4fbf" config-ref="HTTP_Request_configuration" path="/Orders/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.oneorder
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="g3_Delete_book" doc:id="8d77c5e3-7b1e-4dc4-8113-8f44fcb41bd3" >
+		<http:request method="DELETE" doc:name="Request DELETE a PAPI" doc:id="623a807a-5fbd-4dc4-b326-cdded1a0d3c2" config-ref="HTTP_Request_configuration" path="/Books/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.delbooks
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="g3_Put_Orders" doc:id="9fc858e5-1e3c-40a1-8eba-07ede2cab844" >
+		<http:request method="PUT" doc:name="Request PUT a PAPI" doc:id="12e76f40-0032-41d9-97e0-704070760b90" config-ref="HTTP_Request_configuration" path="/Orders/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.putorder
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="g3_Put_book" doc:id="78822bd6-1cdd-4c65-8d7c-81aae44f6d10" >
+		<http:request method="PUT" doc:name="Request PUT a PAPI" doc:id="c0243c27-13c5-4f2f-bb4d-414ff64a68d2" config-ref="HTTP_Request_configuration" path="/Books/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.putbook
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+</mule>

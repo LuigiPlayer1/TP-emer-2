@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="7d4c31ee-f08f-406c-a34f-15406e168856" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="root" database="tp2" />
+	</db:config>
+	<flow name="g3_get_book_id" doc:id="5a8a8365-3288-4531-a2a1-b54d55123aab" >
+		<db:select doc:name="Selecionar livro pelo id" doc:id="9b2c551c-62f9-4cfd-b54f-7ee53b551acc" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT * FROM books
+WHERE id = :id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	"id": vars.bookid2
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transformar payload em json" doc:id="b9908311-51da-470b-8dac-f01356e0c283" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="g3_Post_book" doc:id="6fb21863-8edb-46eb-8496-f72587f65e96" >
+		<db:insert doc:name="Inserir livros na bd" doc:id="7df63b4d-d2ef-47c0-b3f8-8c0d433e6565" config-ref="Database_Config">
+			<db:sql ><![CDATA[INSERT INTO books (id, title, author, cover, publish_date, price)
+VALUES (:id, :title, :author, :cover, :publish_date, :price);]]></db:sql>
+			<db:input-parameters ><![CDATA[#[payload]]]></db:input-parameters>
+		</db:insert>
+		<ee:transform doc:name="Definir campos" doc:id="a8ea2920-f94d-4d1e-be4a-5fbfc1913f7d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"id": vars.book.id,
+	"title": vars.book.title,
+	"author": vars.author,
+	"cover": vars.book.cover,
+	"publish_date": vars.book.publish_date,
+	"price": vars.book.price
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="g3_Post_Orderid" doc:id="8d08b424-6db3-459d-b8de-a50fbfd77702" >
+		<db:insert doc:name="Inserir order na bd" doc:id="b3d60bab-75c1-44c1-8255-7027df024ae1" config-ref="Database_Config">
+			<db:sql ><![CDATA[INSERT INTO Order_items (order_id, book_ids, quantity) 
+VALUES (:order_id, :book_ids, :quantity);]]></db:sql>
+			<db:input-parameters ><![CDATA[#[payload]]]></db:input-parameters>
+		</db:insert>
+	</flow>
+	<flow name="g3_GET_Order_storeid" doc:id="b6be8bba-7a4d-4962-a65b-d22006ff8174" >
+		<db:select doc:name="Selecionar orders pelo storeID" doc:id="8eeab960-0e84-402a-a310-d54430785701" config-ref="Database_Config" >
+			<db:sql ><![CDATA[SELECT * FROM orders
+WHERE store_id = :store_id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	"store_id": vars.abc2
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transformar payload em Json" doc:id="d55cabbb-021f-4cdb-84f0-23b37abe5439" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="g3_Post_Order" doc:id="e402bb2a-33f2-4f7a-989c-c8988f20db45" >
+		<db:insert doc:name="Inserir orders na bd" doc:id="5b1507d3-48f2-4ce9-899a-bd0c5a23f89e" config-ref="Database_Config" >
+			<db:sql ><![CDATA[INSERT INTO Orders (buyer_name, total, store_id) 
+VALUES (:buyer_name, :total, :store_id);
+
+
+
+
+]]></db:sql>
+			<db:input-parameters ><![CDATA[#[payload]]]></db:input-parameters>
+		</db:insert>
+	</flow>
+	<flow name="g3_Post_Stock" doc:id="6dfff9d6-a04e-4b90-a484-42e5d985e605" >
+		<db:bulk-insert doc:name="Inserir stocks na bd" doc:id="c073d1c1-c605-4120-8ea0-c64ab2d62161" config-ref="Database_Config">
+			<db:sql ><![CDATA[INSERT INTO Stocks (book_ids, quantities) 
+VALUES (:book_id, :quantity)
+ON DUPLICATE KEY UPDATE quantities = quantities + VALUES(quantities);]]></db:sql>
+		</db:bulk-insert>
+		<ee:transform doc:name="Mensagem de sucesso" doc:id="db09750a-6c4f-4442-8916-ad47765831f0" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	'message': "Stock created"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="g3_Get_stockid" doc:id="1de260de-c149-4cdb-9c22-c9079ce58aef" >
+		<db:select doc:name="Selecionar stocks pelo id" doc:id="a9ffddc4-3b8b-415a-a52f-98c88f61ffb0" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT * FROM tp2.stocks
+WHERE book_ids = :id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	"id" : vars.stockid2
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transformar payload em Json" doc:id="601f5ae2-26cf-40e8-9978-c1ab7938550f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="g3_Get_stock" doc:id="2328a40f-71c2-46c7-8e1c-55a6aa51c1af" >
+		<db:select doc:name="Selecionar Stock" doc:id="b78ff59c-51f0-4c39-8672-ee12493cf191" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT * FROM tp2.stocks;]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transformar o payload em Json" doc:id="cc7b7922-b313-4386-9cef-ec1baf8f04b4" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="g3_Delete_stock" doc:id="e9aae88a-ef55-4221-a236-ec434120bca4" >
+		<db:delete doc:name="Eliminar stock da bd" doc:id="1969af2d-db54-4570-8b0a-8ad914379646" config-ref="Database_Config">
+			<db:sql ><![CDATA[DELETE FROM stocks
+WHERE book_ids = :id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	"id": vars.delstock2
+}]]]></db:input-parameters>
+		</db:delete>
+		<ee:transform doc:name="Mensagem de sucesso" doc:id="06db97fc-0d1d-419b-8689-04f1e0fc6687" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Stock deleted"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="g3_Put_stock" doc:id="ab78b3b6-81c0-4af9-8e11-c4d108a0124a" >
+		<db:update doc:name="Atualizar stock" doc:id="2c30c5ff-986a-455f-bc6d-bdfc640941c3" config-ref="Database_Config">
+			<db:sql ><![CDATA[UPDATE Stocks
+SET quantities = :quantities
+WHERE book_ids = :book_ids;
+]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	'quantities': payload.quantity,
+	'book_ids': vars.pustock2
+}]]]></db:input-parameters>
+		</db:update>
+		<db:select doc:name="Selecionar Stock pelo id" doc:id="2d07a59b-4c5b-4f7d-a1a8-3a77f1b7f292" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT * FROM tp2.stocks
+WHERE book_ids = :id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	"id": vars.pustock2
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transformar payload em Json" doc:id="17e62f7e-1d9c-4a09-b6fd-0fb4728e7d4f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="g3_Get_Books" doc:id="7ba7267c-b73c-4103-ad37-b9e3479635c0" >
+		<db:select doc:name="Selecionar Books" doc:id="1c415ce1-486b-4a5c-92af-f37aebe7c53e" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT * FROM tp2.books;]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transformar payload em Json" doc:id="a8cd9f4d-d43b-4920-82e7-0484e847e4e8" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="g3_Get_Orders" doc:id="ee923e1a-68c1-4e86-a244-759560e4a6b7" >
+		<db:select doc:name="Selecionar Orders" doc:id="a3b5140c-4244-4705-bcb5-144795c33f2d" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT * FROM tp2.orders;]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transformar payload em Json" doc:id="59a6755c-b156-4ed0-8839-9e026ddf78f4" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="g3_Get_Orderid" doc:id="351e0c34-e62b-401c-b092-9aa07d18a747" >
+		<db:select doc:name="Selecionar Order pelo orderID" doc:id="3989b8a1-600d-41da-b2ef-6156a5498c54" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT * FROM orders
+WHERE id = :id]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	"id" : vars.oneorder2
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transformar payload em Json" doc:id="3c5f054c-84d2-43b9-bd0e-e623d250aee8" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="g3_Delete_book" doc:id="e361cba1-43eb-4478-96ae-0773981f1779" >
+		<db:delete doc:name="Eliminar Stock" doc:id="a45bdc77-2dfd-418f-99aa-cae8d0577564" config-ref="Database_Config">
+			<db:sql ><![CDATA[DELETE FROM stocks
+WHERE book_ids = :id;
+
+]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	"id": vars.delbook2
+}]]]></db:input-parameters>
+		</db:delete>
+		<db:delete doc:name="Eliminar Livro" doc:id="c669d141-e108-4ed3-90ca-040caf6600f0" config-ref="Database_Config">
+			<db:sql><![CDATA[DELETE FROM books
+WHERE id = :id;
+
+
+]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	"id": vars.delbook2
+}]]]></db:input-parameters>
+		</db:delete>
+		<ee:transform doc:name="Mensagem de sucesso" doc:id="63941690-0ea5-4b16-8db0-51bc8b795f5b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Book and stock deleted"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="g3_Put_Orders" doc:id="b809e4d8-c7ac-4f85-9170-247e191935b2" >
+		<db:update doc:name="Atualizar order" doc:id="734a4025-b6b8-43b1-8e2d-076190aca1d0" config-ref="Database_Config">
+			<db:sql ><![CDATA[UPDATE Orders
+SET state = :state
+WHERE id = :id;
+]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	"state":payload.state,
+	"id": vars.putorder2
+}]]]></db:input-parameters>
+		</db:update>
+		<db:select doc:name="Selecionar order pelo orderID" doc:id="b40d8c25-e2f3-4a90-90ac-e997e0940608" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT * FROM orders
+WHERE id = :id;]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	"id": vars.putorder2
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transformar payload em Json" doc:id="f7982ea6-5c4e-4e4a-a24c-41fbf6e4c80f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="g3_Put_Books" doc:id="7e9cb27b-7469-4654-869f-49921c0908ab" >
+		<db:update doc:name="Atualizar Books" doc:id="9f053858-c766-45f2-ae4b-41e6f56ea4ac" config-ref="Database_Config">
+			<db:sql ><![CDATA[UPDATE books
+SET title = :title, author = :author, cover = :cover, publish_date = :publish_date, price = :price 
+WHERE id = :id;]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	"id" : vars.putbook2,
+	"title": payload.title,
+	"author": payload.author,
+	"cover": payload.cover,
+	"publish_date": payload.publish_date,
+	"price": payload.price
+}]]]></db:input-parameters>
+		</db:update>
+		<db:select doc:name="Selecionar Books" doc:id="1580ec9a-a4ce-4b1e-9947-2fda75ad6eb7" config-ref="Database_Config">
+			<db:sql><![CDATA[SELECT * FROM books
+WHERE id = :id;]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	"id": vars.putorder2
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transformar payload em Json" doc:id="eb3630a9-3b50-4584-9822-7d23d38a895d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>

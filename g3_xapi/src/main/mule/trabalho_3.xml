@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd ">
+    <http:listener-config name="trabalho_3-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <apikit:config name="trabalho_3-config" api="resource::9db08e7d-b8a3-4596-8442-6d0aabe71fcc:trabalho_3:1.0.22:raml:zip:trabalho_3.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <flow name="trabalho_3-main">
+        <http:listener config-ref="trabalho_3-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="trabalho_3-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="trabalho_3-console">
+        <http:listener config-ref="trabalho_3-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="trabalho_3-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="put:\Stocks\(id):application\json:trabalho_3-config">
+        <set-variable value="#[attributes.uriParams.id]" doc:name="Set StockID" doc:id="b2d9c4aa-230f-442e-a8dc-74d64a4aebe3" variableName="pustock" />
+        <flow-ref doc:name="Reference para g3_Put_stock" doc:id="98682a08-3fe6-44dd-b0d6-2ab60696d998" name="g3_Put_stock" />
+    </flow>
+    <flow name="delete:\Stocks\(id):trabalho_3-config">
+        <set-variable value="#[attributes.uriParams.id]" doc:name="Set StockID" doc:id="42e31f8c-cc77-4ca6-abf1-47dbe8134a50" variableName="delstock" />
+        <flow-ref doc:name="Reference para g3_Delete_stock" doc:id="fcaf7588-2d1c-4a90-a859-921671c8cd15" name="g3_Delete_stock" />
+    </flow>
+    <flow name="get:\Books:trabalho_3-config">
+        <flow-ref doc:name="Reference para g3_Get_books" doc:id="1621a4cc-a801-4260-81a0-03cf9afc8ae8" name="g3_Get_books" />
+    </flow>
+    <flow name="get:\Books\(id):trabalho_3-config">
+        <set-variable value="#[attributes.uriParams.id]" doc:name="Set BookID" doc:id="2be21c5e-b567-4c2e-a364-503b0ffb2966" variableName="bookid" />
+        <flow-ref doc:name="Reference para g3_get_book_id" doc:id="f09737e9-a7aa-478e-9534-892143429e6c" name="g3_get_book_id" />
+    </flow>
+    <flow name="get:\Orders:trabalho_3-config">
+        <flow-ref doc:name="Reference para g3_Get_Orders" doc:id="a4dfeb2c-18aa-4787-919d-19f2416981d0" name="g3_Get_Orders" />
+    </flow>
+    <flow name="get:\Orders\Store\(id):trabalho_3-config">
+        <set-variable value="#[attributes.uriParams.id]" doc:name="Set StoreID" doc:id="e01347ca-ee07-4295-81ad-e387f23b8e01" variableName="abc" />
+        <flow-ref doc:name="Reference para g3_get_order_storeid" doc:id="7bf2efe9-1821-4fa3-8a47-f7e855071458" name="g3_get_order_storeid" targetValue="#[attributes.uriParams.id]" />
+    </flow>
+    <flow name="get:\Orders\(id):trabalho_3-config">
+        <set-variable value="#[attributes.uriParams.id]" doc:name="Set OrderID" doc:id="8a0da1e1-3de0-4923-969d-4431c3a3de31" variableName="oneorder" />
+        <flow-ref doc:name="Reference para g3_Get_Orderid" doc:id="315c8c53-db31-4a51-aae6-1f162383475b" name="g3_Get_Orderid" />
+    </flow>
+    <flow name="get:\Stocks:trabalho_3-config">
+        <flow-ref doc:name="Reference para g3_Get_stock" doc:id="9a8f2c00-e126-47a8-87d9-e336a060934a" name="g3_Get_stock" />
+    </flow>
+    <flow name="get:\Stocks\(id):trabalho_3-config">
+        <set-variable value="#[attributes.uriParams.id]" doc:name="Set StockID" doc:id="de209e14-b698-4bf1-a31c-6518b7234460" variableName="stockid" />
+        <flow-ref doc:name="Reference para g3_Get_Stockid" doc:id="d25fcc7d-3203-4b67-99b7-3d7739790337" name="g3_Get_Stockid" />
+    </flow>
+    <flow name="post:\Orders:application\json:trabalho_3-config">
+        <flow-ref doc:name="Reference para Post_Order" doc:id="203d1e5f-c3e1-4cc3-a67c-f622f6872e95" name="Post_Order" />
+    </flow>
+    <flow name="post:\Stocks:application\json:trabalho_3-config">
+        <flow-ref doc:name="Reference para g3_Post_stock" doc:id="81996a2b-4c68-4f0b-9d64-e5671dd1c14e" name="g3_Post_stock" />
+    </flow>
+    <flow name="post:\Books:application\json:trabalho_3-config">
+        <flow-ref doc:name="Reference para g3_Post_book" doc:id="ec3230d6-0897-419c-b8b5-4bc64e9cc52b" name="g3_Post_book" />
+    </flow>
+    <flow name="put:\Books\(id):application\json:trabalho_3-config">
+        <set-variable value="#[attributes.uriParams.id]" doc:name="Set BookID" doc:id="386013e2-af11-408a-b17b-8566d8bde003" variableName="putbook" />
+        <flow-ref doc:name="Reference para g3_Put_book" doc:id="9a9f8d46-2da5-47a4-a33d-e5e3e4cedb15" name="g3_Put_book" />
+    </flow>
+    <flow name="put:\Orders\(id):application\json:trabalho_3-config">
+        <set-variable value="#[attributes.uriParams.id]" doc:name="Set OrderID" doc:id="c968af07-17c2-4e12-928d-00d1d11bc4ff" variableName="putorder" />
+        <flow-ref doc:name="Reference para g3_Put_Orders" doc:id="b9b09948-ae94-47fa-8dc2-ad9d3709fa52" name="g3_Put_Orders" />
+    </flow>
+    <flow name="delete:\Books\(id):trabalho_3-config">
+        <set-variable value="#[attributes.uriParams.id]" doc:name="Set BookID" doc:id="86e07aef-94fd-4fd7-9b29-aa4dac2485f8" variableName="delbooks" />
+        <flow-ref doc:name="Reference para g3_Delete_book" doc:id="60511bb2-349c-4b35-a731-13db0a87757e" name="g3_Delete_book" />
+    </flow>
+</mule>

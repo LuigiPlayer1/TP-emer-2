@@ -1,0 +1,12 @@
+%dw 2.0
+
+type auto_78822bd6_1cdd_4c65_8d7c_81aae44f6d10_Input_Payload = {
+  cover: String, 
+  author: String, 
+  price: Number, 
+  id: String, 
+  title: String, 
+  publish_date: String, 
+  _?: Any
+}
+

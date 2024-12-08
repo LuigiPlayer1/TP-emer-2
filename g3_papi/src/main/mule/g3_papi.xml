@@ -1,0 +1,445 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="9b853a42-8d01-474c-a816-15f0d0fa50f3" basePath="/api" >
+		<http:request-connection host="localhost" port="8083" />
+	</http:request-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="da1e5392-1253-4ef7-a7d5-2bb0fc368d82" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="root" database="tp2" />
+	</db:config>
+	<http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="e1e1d9eb-6983-4f72-9008-f52cb5b5c994">
+		<http:request-connection host="openlibrary.org" />
+	</http:request-config>
+	<flow name="g3_get_book_id" doc:id="72fc58a6-2443-4f40-a481-abb1107afd04" >
+		<http:request method="GET" doc:name="Request GET para SAPI" doc:id="601dca5b-3622-4b70-b558-423eea2fc093" config-ref="HTTP_Request_configuration" path="/Books/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.bookid1
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="Post_Order" doc:id="f6517d9a-2a4a-49cd-9bfd-f1d93d53075e" >
+		<foreach doc:name="For Each" doc:id="6dc6af21-09b7-403a-8e4d-1fcb4286555b" >
+			<set-variable value="#[payload]" doc:name="Set payload_inicial" doc:id="ed01d6b3-2b27-4e09-9588-8c1a1f25168e" variableName="payload1" />
+			<set-variable doc:name="Set preço" doc:id="d0094a74-9039-44cd-88d0-af0c412cf699" variableName="price" mimeType="application/json" value="0" />
+			<ee:transform doc:name="Buscar Order_Details" doc:id="2dfe7dff-ceaa-45f4-aabc-2cbbb3f6c80b">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+vars.payload1.order_details
+
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			<foreach doc:name="For Each" doc:id="c1afce5b-c22b-428f-a258-75c457a990b5">
+			<set-variable value="#[payload]" doc:name="Set order_details" doc:id="c02270d9-0e20-44bb-a256-5eb70166b6ba" variableName="payload2" />
+			<db:select doc:name="Selecionar quantidades em stock" doc:id="bba5abe5-1521-46b6-969a-5eb7bd1688ea" config-ref="Database_Config">
+						<db:sql><![CDATA[SELECT quantities FROM Stocks
+where book_ids = :book_id]]></db:sql>
+						<db:input-parameters><![CDATA[#[{
+	"book_id" : payload.id
+}]]]></db:input-parameters>
+					</db:select>
+				<choice doc:name="Choice" doc:id="cecd9f98-74f2-4a70-a39f-d6690375c6c6">
+				<when expression="#[payload[0].quantities - vars.payload2.quantity &gt;= 0]">
+					<db:select doc:name="Selecionar preços" doc:id="4e74fc4d-7c2e-4db0-97f1-c96541cd11ea" config-ref="Database_Config">
+				<db:sql><![CDATA[SELECT price FROM Books
+where id = :book_id]]></db:sql>
+				<db:input-parameters><![CDATA[#[{
+	"book_id" : vars.payload2.id
+}]]]></db:input-parameters>
+			</db:select>
+					<ee:transform doc:name="Calcular preço total" doc:id="d484bcb0-0ae0-4667-95cf-ba98ec007834">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+(payload[0].price * vars.payload2.quantity) + vars.price]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+					<set-variable value="#[payload]" doc:name="Set Total" doc:id="0c4c3b21-06da-4081-8a54-6916cdab0065" variableName="price" />
+					<db:update doc:name="Atualizar quantidades" doc:id="25a2b32c-c473-407d-90c6-adc252b47e33" config-ref="Database_Config">
+						<db:sql><![CDATA[UPDATE Stocks
+SET quantities = quantities - :quantities
+WHERE book_ids = :book_ids;]]></db:sql>
+						<db:input-parameters><![CDATA[#[{
+	'quantities': vars.payload2.quantity,
+	'book_ids': vars.payload2.id
+}]]]></db:input-parameters>
+					</db:update>
+					<db:select doc:name="Seleciona o ultimo id da order" doc:id="0e93c6c5-1e8a-497e-ac50-f2cedd56f74b" config-ref="Database_Config">
+						<db:sql><![CDATA[SELECT id FROM Orders
+ORDER BY id DESC
+limit 1
+]]></db:sql>
+					</db:select>
+					<ee:transform doc:name="Cria o StoreID do Order Items" doc:id="10662f30-c66e-4001-9642-b4493f72dd4e">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload[0].id + 1]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<http:request method="POST" doc:name="Request POST para SAPI" doc:id="1f50e2a0-e5da-4dfe-9feb-add2f0001fc5" config-ref="HTTP_Request_configuration" path="/Orders/(id)">
+						<http:body><![CDATA[#[{
+	'order_id': payload,
+	'book_ids': vars.payload2.id,
+	'quantity': vars.payload2.quantity
+	
+}]]]></http:body>
+					</http:request>
+				
+</when>
+				<when expression="#[payload[0].quantities - vars.payload2.quantity &lt; 0]">
+					<ee:transform doc:name="Transform Message" doc:id="37f803a8-261c-4e09-8ef6-25bf6ca5b187">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "NO stock!"
+}
+]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<raise-error doc:name="Raise error" doc:id="a20b8880-6374-41f9-a46e-5b31d4bf672f" type="ANY" description="NO STOCK" />
+				</when>
+			</choice>
+		</foreach>
+			<ee:transform doc:name="Transform Message" doc:id="0530d805-b09f-4030-8621-a72cb6605bf7">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+vars.price]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			<flow-ref doc:name="Reference para Post_OrderContinue" doc:id="f7780fb8-5f35-44d8-ae85-0d615b6071c0" name="Post_OrderContinue" />
+		</foreach>
+	
+</flow>
+	<flow name="Post_OrderContinue" doc:id="ae0b0d42-b704-45d7-89d5-1daa187fce22" >
+		<http:request method="POST" doc:name="Request POST para SAPI" doc:id="bc9537e4-c1b9-446c-b7d8-c8a96d777c35" config-ref="HTTP_Request_configuration" path="/Orders">
+			<http:body ><![CDATA[#[{
+'buyer_name': vars.payload1.buyer_name,
+'store_id': vars.payload1.store_id,
+'total': payload
+}]]]></http:body>
+		</http:request>
+		<ee:transform doc:name="Mensagem de sucesso" doc:id="fa05949d-688f-413f-a729-bc073e4d4129" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+message: "new order has been created"
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="Get_Order_storeid" doc:id="90a41de9-9a24-4e2a-a424-47ef644270e6" >
+		<http:request method="GET" doc:name="Request GET para SAPI" doc:id="dc9a7eb5-14bf-43e9-8372-324ee6fd0a62" config-ref="HTTP_Request_configuration" path="/Orders/Store/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.abc1
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="g3_Get_stock_id" doc:id="14bbf603-379d-41dc-a632-3cbe95854e9c" >
+		<http:request method="GET" doc:name="Request GET para SAPI" doc:id="e6782112-256e-4bb4-ac1d-7f445bc4c3da" config-ref="HTTP_Request_configuration" path="/Stocks/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.stockid1
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="g3_Post_Stock" doc:id="d33606e4-1fd3-412f-9bd3-98eafacaa957" >
+		<http:request method="POST" doc:name="Request POST para SAPI" doc:id="2a01a142-af70-43ae-a847-9a235e7f6b5c" config-ref="HTTP_Request_configuration" path="/Stocks"/>
+	</flow>
+	<flow name="g3_Get_stock" doc:id="31d54a07-cb92-4699-a33a-61333e57a9b3" >
+		<http:request method="GET" doc:name="Request GET para SAPI" doc:id="6c143783-a5be-483c-bed2-6d71a9f6a26e" config-ref="HTTP_Request_configuration" path="/Stocks"/>
+	</flow>
+	<flow name="g3_Put_Stock" doc:id="9fd1ece4-bbf1-400c-b052-6156f55ef2be" >
+		<http:request method="PUT" doc:name="Request PUT para SAPI" doc:id="f56ef670-1e3c-4b8d-af18-287f50da151c" config-ref="HTTP_Request_configuration" path="/Stocks/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.pustock1
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="g3_Delete_Stock" doc:id="42371f4c-0daa-4bf8-be81-419282fdc007" >
+		<http:request method="DELETE" doc:name="Request DELETE para SAPI" doc:id="20d772d4-4e85-47ee-9c56-f2c2656b27e4" config-ref="HTTP_Request_configuration" path="/Stocks/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.delstock1
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="g3_Get_Books" doc:id="3c49fa8d-3103-44ac-8fc0-21b1d91bb5be" >
+		<http:request method="GET" doc:name="Request GET para SAPI" doc:id="3b2eea3c-cd91-4244-9cbc-27d8339ce60c" config-ref="HTTP_Request_configuration" path="/Books"/>
+	</flow>
+	<flow name="g3_Get_Orders" doc:id="e75ada18-8174-4e2b-9cbb-ffebc083b851" >
+		<http:request method="GET" doc:name="Request GET para SAPI" doc:id="d62d5920-6a60-4f8d-b50b-6336ebff6f21" config-ref="HTTP_Request_configuration" path="/Orders"/>
+	</flow>
+	<flow name="g3_Get_Orderid" doc:id="283d2a89-32a6-48bc-aaca-014257bfa1ec" >
+		<http:request method="GET" doc:name="Request GET para SAPI" doc:id="f21313f6-f7e3-4fa3-8620-a38069a621eb" config-ref="HTTP_Request_configuration" path="/Orders/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.oneorder1
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="g3_Delete_book" doc:id="d4013311-9039-48c4-a3ed-378455f78126" >
+		<http:request method="DELETE" doc:name="Request DELETE para SAPI" doc:id="b77944f5-16cf-4965-8b72-4221ca0b6275" config-ref="HTTP_Request_configuration" path="/Books/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.delbook1
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="g3_Put_Order" doc:id="fa3691cd-6e3d-4cc7-91fd-b5bb653210b8" >
+		<http:request method="PUT" doc:name="Request PUT para SAPI" doc:id="912988df-5417-4caa-9ad8-bf7883ee938d" config-ref="HTTP_Request_configuration" path="/Orders/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.putorder1
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="g3_Put_book" doc:id="77300942-e73c-4693-b720-12857808fcdc" >
+		<http:request method="PUT" doc:name="Request PUT para SAPI" doc:id="09298f51-7a9d-498a-8a68-776cb8f3e659" config-ref="HTTP_Request_configuration" path="/Books/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.putbook1
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	
+<flow name="PostBook" doc:id="f3e0162c-a7bc-4a49-b63c-ce5331a9ea5e" >
+		<set-variable value="#[payload]" doc:name="Set Payload" doc:id="729453ea-d8bf-4d0d-b260-ad7c7bd3c0e5" variableName="payload1" />
+		<db:select doc:name="Selecionar Books" doc:id="6659a336-5ab9-412f-9c57-a8650de7fedc" config-ref="Database_Config">
+			<db:sql><![CDATA[SELECT id FROM books 
+]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Filtragem de livros existentes" doc:id="1050ed5d-7117-4950-9244-814e2fc471a8">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var books = vars.payload1
+
+var filterCriteria = payload
+
+---
+books filter ((book) -> !(filterCriteria map ((item) -> item.id) contains book.id))
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<foreach doc:name="For Each" doc:id="fb8a79dc-956d-494a-aeea-595d19ba5459">
+			<set-variable value="#[payload]" doc:name="Set Payload de livros filtrados" doc:id="ce79d291-fa60-4668-af3f-a469a38ecc61" variableName="payload2" />
+			<http:request method="GET" doc:name="Request GET do livro para a API Openlibrary" doc:id="ea244a65-bb1d-49bc-82ca-829c9479bc90" config-ref="HTTP_Request_configuration1" path="/books/{id}.json">
+			<http:uri-params><![CDATA[#[output application/java
+---
+{
+	"id" : vars.payload2.id
+}]]]></http:uri-params>
+		</http:request>
+			<ee:transform doc:name="Definir os campos" doc:id="07cd7799-2add-4604-a001-e3094e95a0f4">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"id": vars.payload2.id,
+	"title": payload.title,
+	"author": payload.authors[0].key,
+	"cover": payload.covers[0],
+	"publish_date": payload.publish_date,
+	"price": vars.payload2.price
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			<set-variable value="#[payload]" doc:name="Set Book" doc:id="192c56a8-4e9e-46d3-b8e0-1e9129855c24" variableName="book" />
+			<set-variable value="#[vars.book.author]" doc:name="Set AuthorID" doc:id="8b0d444a-02d3-4e13-af6e-f7fd8d7a1eae" variableName="author_id" />
+			<http:request method="GET" doc:name="Request GET do autor para a API Openlibrary" doc:id="0837008f-b071-4457-b501-28f1877c0798" config-ref="HTTP_Request_configuration1" path="{id}.json">
+			<http:uri-params><![CDATA[#[output application/java
+---
+{
+	"id" : vars.author_id
+}]]]></http:uri-params>
+		</http:request>
+			<set-variable value="#[payload.name]" doc:name="Set Autor" doc:id="e4199b22-2e74-4be1-943b-c098c30cfbd9" variableName="author" />
+			<http:request method="POST" doc:name="Request POST para SAPI" doc:id="dec43e6e-7328-486d-b740-a843fc8ed3a4" config-ref="HTTP_Request_configuration" path="/Books" >
+				<http:body ><![CDATA[#[{
+	"id": vars.book.id,
+	"title": vars.book.title,
+	"author": vars.author,
+	"cover": vars.book.cover,
+	"publish_date": vars.book.publish_date,
+	"price": vars.book.price
+}]]]></http:body>
+			</http:request>
+		</foreach>
+	</flow>
+	
+<flow name="Email" doc:id="4b581542-6184-4f72-88d3-f077b3a6b08a">
+        <scheduler doc:name="Email diário" doc:id="31a87a4e-de51-4e30-9625-a59afffc4208">
+            <scheduling-strategy>
+				<cron expression="0 59 11 * * ?" timeZone="GMT" />
+            
+</scheduling-strategy>
+        </scheduler>
+        <file:write doc:name="Escrever data e total de orders1" doc:id="a3dcb4fb-7975-48c1-9cd5-7e4d552cde66" path="C:\Users\admin\Desktop\testfolder\Text.txt">
+			<file:content ><![CDATA[Atividade:]]></file:content>
+		</file:write>
+		<set-variable value="#[0]" doc:name="Set total_orders" doc:id="70ba187f-5389-40c5-9f60-f00426be1cb9" variableName="total_orders" />
+		<db:select doc:name="Selecionar orders de uma store" doc:id="b196dfdb-9b15-4e43-9ca8-2fe0a850d71e" config-ref="Database_Config">
+            <db:sql><![CDATA[SELECT DISTINCT store_id FROM orders
+WHERE DATE(creation_date);]]></db:sql>
+        </db:select>
+        <ee:transform doc:name="Define payload como storeID" doc:id="56a255f5-8b2c-47e6-a566-d55fae6988ef">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload.store_id]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+		<foreach doc:name="For Each" doc:id="f241c45e-998f-43d9-b581-e3a13055d1b5">
+            <set-variable value="#[payload]" doc:name="Set store" doc:id="8ee1e944-be1a-4a7b-8904-1c67bedf42e0" variableName="store" />
+            <set-variable value="0" doc:name="Set totalF2" doc:id="d3ba373d-fc87-4850-83b7-77898bb8bfdf" variableName="total_f2" />
+            <db:select doc:name="Selecionar orders do dia" doc:id="90b033c6-57c3-4fe7-ab5f-10be3f048476" config-ref="Database_Config">
+                <db:sql><![CDATA[SELECT * FROM orders
+WHERE DATE(creation_date) = :data and store_id = :id;]]></db:sql>
+                <db:input-parameters><![CDATA[#[%dw 2.0
+import * from dw::core::Dates
+output application/json
+---
+{
+	"data": today(),
+	"id": vars.store
+}]]]></db:input-parameters>
+            </db:select>
+			<scatter-gather doc:name="Scatter-Gather" doc:id="651ba689-9241-4cb5-a746-ffe523256381">
+                <route>
+                    <ee:transform doc:name="Define o payload como o total" doc:id="5f96f22e-5ca9-4631-8e66-b6189884378c">
+                        <ee:message>
+                            <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload.total]]></ee:set-payload>
+                        </ee:message>
+                    </ee:transform>
+                    <foreach doc:name="For Each" doc:id="102ad7a9-799b-48ea-9ab1-673b0722c954">
+                        <set-variable value="#[payload]" doc:name="Set totalF" doc:id="53417f56-a16e-4078-8485-7beb26d76714" variableName="total_f" />
+                        <ee:transform doc:name="Calcula o total" doc:id="83f16d56-5b20-41b3-93a1-e63756e40a2d">
+                            <ee:message>
+                                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+vars.total_f + vars.total_f2]]></ee:set-payload>
+                            </ee:message>
+                        </ee:transform>
+                        <set-variable doc:name="Set totalF2" doc:id="18485d18-11be-4ba5-9606-3e5d58e84ee9" variableName="total_f2" value="#[payload]" />
+                    </foreach>
+                </route>
+                <route>
+                    <ee:transform doc:name="Transforma payload em json" doc:id="cde2549f-cf75-476b-bfa3-af207c603787">
+                        <ee:message>
+                            <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+                        </ee:message>
+                    </ee:transform>
+                    <set-variable value="#[payload]" doc:name="Set Orders" doc:id="62b5d483-8b9c-4f07-bc46-f4dfb8717cf3" variableName="orders" />
+                </route>
+                <route>
+                    <db:select doc:name="Seleciona a Store" doc:id="235625d0-e424-481d-882e-d5c209c00880" config-ref="Database_Config">
+                        <db:sql><![CDATA[SELECT * FROM tp2.stores
+WHERE id = :id]]></db:sql>
+                        <db:input-parameters><![CDATA[#[{
+	"id": vars.store
+}]]]></db:input-parameters>
+                    </db:select>
+                    <set-variable value="#[payload.name[0]]" doc:name="Set Store" doc:id="31de8608-f1f9-46e9-bf8a-f70f6d24ae67" variableName="stores" />
+                </route>
+                <route>
+                    <db:select doc:name="Selecionar conta total de orders" doc:id="9031f858-80e1-4a9f-83d1-327fc5094847" config-ref="Database_Config">
+                        <db:sql><![CDATA[SELECT COUNT(*) AS total_orders
+FROM orders
+WHERE DATE(creation_date) = :data;]]></db:sql>
+                        <db:input-parameters><![CDATA[#[%dw 2.0
+import * from dw::core::Dates
+output application/json
+---
+{
+	"data": today()
+}]]]></db:input-parameters>
+                    </db:select>
+                    <set-variable value="#[payload.total_orders[0]]" doc:name="Set total_orders" doc:id="f1123945-82c2-45db-aa01-b8c153d0fb07" variableName="total_orders" />
+                </route>
+            
+</scatter-gather>
+			<ee:transform doc:name="Definir campos internos" doc:id="d1c8cc51-56cb-442e-9164-dfc7fc2f2ee9">
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	("store " ++ vars.stores):
+	{
+		"orders": vars.orders,
+		"total_euros": vars.total_f2
+	
+	}
+}]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+			<file:write doc:name="Escrever loja e as orders dessa loja" doc:id="f0a268bd-a5f4-4cee-ae23-eb479921c3b0" path="C:\Users\admin\Desktop\testfolder\Text.txt" mode="APPEND" />
+        
+</foreach>
+		<ee:transform doc:name="Define os campos" doc:id="0e13b14f-54c4-4d65-af1f-a6241c99f147">
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+import * from dw::core::Dates
+output application/json
+---
+{
+	"data": today(),
+	"total_orders": vars.total_orders
+}]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+		<file:write doc:name="Escrever data e total de orders" doc:id="c2ba0f86-c708-4685-90c4-e6cbfb64aae4" path="C:\Users\admin\Desktop\testfolder\Text.txt" mode="APPEND"/>
+		<error-handler>
+            <on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="7467a4af-d06f-4e6c-91ac-9f2b27cbdfbd">
+                <file:write doc:name="Mensagem de falta de orders" doc:id="cc70bf50-a0a8-4c23-bb21-47ac196527fe" path="C:\Users\admin\Desktop\testfolder\Text.txt">
+                    <file:content><![CDATA[#[%dw 2.0
+import * from dw::core::Dates
+output application/json
+---
+{
+    "message": "No orders for : " ++ today()
+}]]]></file:content>
+                </file:write>
+            </on-error-continue>
+        </error-handler>
+    </flow>
+</mule>

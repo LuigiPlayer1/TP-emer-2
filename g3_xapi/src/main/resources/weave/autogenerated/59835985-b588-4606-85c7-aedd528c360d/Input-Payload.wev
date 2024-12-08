@@ -1,0 +1,5 @@
+%dw 2.0
+
+type auto_59835985_b588_4606_85c7_aedd528c360d_Input_Payload = Array<{|  id: String,   title: String,   author: String,   cover: String,   publish_date: String,   price: Number|}> {"mediaType": "application/json",
+"encoding": "UTF-8"}
+
